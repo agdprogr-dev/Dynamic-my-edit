@@ -1,0 +1,33 @@
+name: InputAlign diagnostics
+on:
+  push:
+    paths: ['diagnostics/**', '.github/workflows/inputalign-diagnostics.yml']
+  pull_request:
+    paths: ['diagnostics/**', '.github/workflows/inputalign-diagnostics.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S diagnostics -B build-core -DINPUTALIGN_BUILD_MOD=OFF -DCMAKE_BUILD_TYPE=Release
+      - run: cmake --build build-core
+      - run: ctest --test-dir build-core --output-on-failure
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: geode-sdk/build-geode-mod@61a56c697aea9655e3f31c6c1b83870431f30434
+        id: build
+        with:
+          path: diagnostics
+          sdk: v5.11.2
+          target: Win64
+          configure-args: -DBUILD_TESTING=OFF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: inputalign-diagnostics-windows-experimental
+          path: ${{ steps.build.outputs.build-output }}
+          if-no-files-found: error
