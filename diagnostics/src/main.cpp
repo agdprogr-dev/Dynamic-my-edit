@@ -222,7 +222,7 @@ class $modify(InputAlignDiagnosticsPause, PauseLayer) {
         std::string text = fmt::format("<cy>Estado actual:</c> {}\n\nNivel: {} solicitudes, {} expirados, {} cancelados, {} mantenidos.\nSon decisiones de esta ayuda, no vidas salvadas.\n\n",
             inputalign::blockMessage(blocker),totals.requested,totals.expired,totals.cancelled,totals.native_holds);
         if (!landingTap.historySize()) text += "Todavia no hay resultados en este nivel.\n";
-        for (std::size_t i=0; i<landingTap.historySize() && i<6; ++i) {
+        for (std::size_t i=0; i<landingTap.historySize(); ++i) {
             auto const& event = *landingTap.recent(i);
             text += inputalign::tapMessage(event.status);
             if (event.status == inputalign::TapStatus::applied)
