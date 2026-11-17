@@ -3,8 +3,25 @@
 #include <cstdint>
 #include <string_view>
 #include <limits>
+#include <array>
+#include <cstddef>
 namespace inputalign {
 enum class TapAction { none, press, release };
+enum class TapCancel { none, context, replaced, pause, reset, error };
+constexpr std::string_view cancelMessage(TapCancel c) {
+    switch (c) {
+        case TapCancel::context: return "contexto incompatible";
+        case TapCancel::replaced: return "reemplazado por otro tap";
+        case TapCancel::pause: return "pausa";
+        case TapCancel::reset: return "muerte o reinicio";
+        case TapCancel::error: return "error de asistencia";
+        default: return "sin cancelacion";
+    }
+}
+constexpr int nextTapWindow(std::int64_t current) {
+    for (int value : {40, 80, 120, 150}) if (current < value) return value;
+    return 40;
+}
 enum class TapStatus { idle, armed, applied, expired, cancelled, native_hold };
 constexpr std::string_view tapMessage(TapStatus s) {
     switch (s) {
@@ -16,6 +33,11 @@ constexpr std::string_view tapMessage(TapStatus s) {
         default: return "Sin tap pendiente";
     }
 }
+struct TapEvent {
+    TapStatus status = TapStatus::idle;
+    TapCancel cause = TapCancel::none;
+    std::uint64_t delay_ms = 0; // Present only for a requested press, not a claimed save.
+};
 struct TapStats {
     std::uint32_t requested = 0, expired = 0, cancelled = 0, native_holds = 0;
     std::uint64_t last_delay_ms = 0;
@@ -29,17 +51,30 @@ class LandingTap {
     std::uint64_t started = 0, window = 80;
     TapStatus last = TapStatus::idle;
     TapStats totals;
-    void cancelPending() {
-        if (armed) { incrementCounter(totals.cancelled); last = TapStatus::cancelled; }
+    std::array<TapEvent, 16> outcomes{};
+    std::size_t next = 0, used = 0;
+    void record(TapStatus state, TapCancel cause = TapCancel::none, std::uint64_t delay = 0) {
+        last = state;
+        outcomes[next] = {state, cause, delay};
+        next = (next + 1) % outcomes.size();
+        if (used < outcomes.size()) ++used;
+    }
+    void cancelPending(TapCancel cause = TapCancel::context) {
+        if (armed) { incrementCounter(totals.cancelled); record(TapStatus::cancelled, cause); }
         armed = false;
     }
 public:
     void clear() { *this = LandingTap{}; }
     TapStatus status() const { return last; }
     TapStats const& stats() const { return totals; }
+    std::size_t historySize() const { return used; }
+    TapEvent const* recent(std::size_t index) const {
+        if (index >= used) return nullptr;
+        return &outcomes[(next + outcomes.size() - 1 - index) % outcomes.size()];
+    }
     // Called only where the game resets the player's own input state (death/retry).
     void resetAttempt() {
-        cancelPending();
+        cancelPending(TapCancel::reset);
         down = pulse = false;
         started = 0;
     }
@@ -48,7 +83,7 @@ public:
         pulse = false;
         if (!eligible) { cancelPending(); down = press; return; }
         if (press && !down) {
-            cancelPending();
+            cancelPending(TapCancel::replaced);
             armed = falling;
             started = now;
             window = static_cast<std::uint64_t>(std::clamp(ms, 10, 150));
@@ -56,9 +91,9 @@ public:
         }
         down = press;
     }
-    TapAction stop() {
+    TapAction stop(TapCancel cause = TapCancel::pause) {
         bool release = pulse && !down;
-        cancelPending();
+        cancelPending(cause);
         pulse = false;
         return release ? TapAction::release : TapAction::none;
     }
@@ -73,16 +108,16 @@ public:
         if (!eligible) { cancelPending(); return TapAction::none; }
         if (!armed) return TapAction::none;
         if (now < started || now - started >= window) {
-            armed = false; last = TapStatus::expired;
+            armed = false; record(TapStatus::expired);
             incrementCounter(totals.expired); return TapAction::none;
         }
         if (!grounded) return TapAction::none;
         armed = false;
         if (down) {
-            last = TapStatus::native_hold; incrementCounter(totals.native_holds);
+            record(TapStatus::native_hold); incrementCounter(totals.native_holds);
             return TapAction::none;
         }
-        pulse = true; last = TapStatus::applied;
+        pulse = true; record(TapStatus::applied, TapCancel::none, now - started);
         incrementCounter(totals.requested); totals.last_delay_ms = now - started;
         return TapAction::press;
     }

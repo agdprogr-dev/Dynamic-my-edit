@@ -3,11 +3,11 @@
   "gd": {
     "win": "2.2081"
   },
-  "version": "v0.3.0",
+  "version": "v0.4.0",
   "id": "agdprogr.inputalign_diagnostics",
-  "name": "InputAlign Diagnostics (experimental)",
+  "name": "InputAlign Tap Assist (experimental)",
   "developer": "agdprogr-dev",
-  "description": "Configuration diagnostics with optional experimental practice cube landing-tap assist.",
+  "description": "Practice landing-tap assistance with pause controls and bounded outcome diagnostics.",
   "settings": {
     "capture": {
       "type": "bool",

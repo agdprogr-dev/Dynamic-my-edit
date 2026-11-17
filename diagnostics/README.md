@@ -80,7 +80,27 @@ El panel muestra contadores por nivel: **solicitudes de pulsación**, taps expir
 
 La cobertura añade pruebas de los filtros y sus combinaciones, convivencia con el original, conservación de estadísticas, reinicios y ausencia de doble conteo. El verificador de cobertura genérico no reconoce estos archivos C++; se inspeccionaron manualmente. Compilar y pasar estas pruebas no sustituye la comprobación de física y orden de hooks dentro de Geometry Dash.
 
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:525f6f0f9eeccbf827777bbeeb74568090d6aaceee0e321b3982133b748991d5 -->
+
+## Tap accesible desde pausa (v0.4.0)
+
+El complemento se muestra como **InputAlign Tap Assist (experimental)** y conserva su identificador. Sustituye la versión anterior del complemento; no instales ambas. El InputAlign original sigue siendo un mod distinto.
+
+En la columna derecha de pausa aparecen:
+
+- **Tap ON/OFF:** cambia y guarda la activación de esta ayuda. Al activarla muestra el estado actual y los requisitos. No modifica ajustes del corrector original; si este bloquea, apaga manualmente **Buffer in cube and others**. Wave puede mantenerse activo. La ayuda sigue apagada por defecto y sigue limitada a práctica/cubo/jugador 1 sin CBF.
+- **Ventana Tap:** recorre 40, 80, 120 y 150 ms reales. La etiqueta muestra el valor efectivo y ON/OFF. Los valores personalizados de 10 a 150 ms siguen disponibles en Geode; el botón avanza al siguiente preset superior y vuelve a 40 tras 150.
+- **Historial Tap:** muestra los últimos resultados de la ayuda, más recientes primero, y el bloqueo actual. Guarda hasta 16 resultados por nivel. Incluye retraso solicitado, expiración y causa de cancelación: contexto, reemplazo, pausa, muerte/reinicio o error. Las solicitudes no demuestran vidas salvadas.
+
+Cambiar activación o ventana descarta cualquier tap pendiente. Morir o reiniciar conserva estadísticas e historial, pero limpia entradas pendientes; empezar o salir de un nivel limpia todos los datos. La pausa libera el pulso sintético si corresponde y no libera un botón que el usuario acaba de mantener. Los nuevos botones son independientes de la captura del diagnóstico general.
+
+Los 400 ticks del paquete original son independientes de esta ventana en milisegundos. Esta ayuda reintenta taps soltados al caer, no adelanta clics tardíos ni predice obstáculos. Los controles, la carga del complemento y el comportamiento físico requieren prueba dentro del juego; compilar el mod no demuestra esa integración.
+
 ## Trabajo pendiente del motor
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 <!-- /coderabbit-ai-generated:v1 -->
 

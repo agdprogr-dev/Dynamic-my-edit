@@ -61,5 +61,29 @@ int main() {
     std::uint32_t counter = std::numeric_limits<std::uint32_t>::max()-1;
     incrementCounter(counter); incrementCounter(counter);
     check(counter==std::numeric_limits<std::uint32_t>::max(),"counters saturate");
+    b.clear(); check(b.recent(0)==nullptr,"empty outcome history");
+    tap(b); b.step(20,true,true); b.afterPhysics();
+    check(b.recent(0)->status==TapStatus::applied && b.recent(0)->delay_ms==20,"requested delay history");
+    b.resetAttempt(); check(b.historySize()==1,"attempt reset preserves history");
+    tap(b,100); b.stop();
+    check(b.recent(0)->cause==TapCancel::pause,"pause cancellation cause");
+    b.resetAttempt(); tap(b,200); b.resetAttempt();
+    check(b.recent(0)->cause==TapCancel::reset,"death/reset cause");
+    tap(b,300); b.step(310,false,false);
+    check(b.recent(0)->cause==TapCancel::context,"eligibility cause");
+    b.resetAttempt(); tap(b,400); b.stop(TapCancel::error);
+    check(b.recent(0)->cause==TapCancel::error,"error cause");
+    b.resetAttempt(); tap(b,500); b.input(true,true,true,510,80);
+    check(b.recent(0)->cause==TapCancel::replaced,"replacement cause");
+    b.clear();
+    for (unsigned i=0; i<40; ++i) { tap(b,i*100); b.step(i*100+80,true,false); }
+    check(b.historySize()==16 && !b.recent(16),"bounded history");
+    check(b.recent(15)->status==TapStatus::expired,"history retains valid oldest entry");
+    b.resetAttempt(); tap(b,5000); b.step(5012,true,true); b.afterPhysics();
+    check(b.recent(0)->delay_ms==12 && b.recent(1)->status==TapStatus::expired,"newest-first ring order");
+    b.clear(); check(b.historySize()==0 && !b.recent(0),"level exit clears history");
+    check(nextTapWindow(10)==40 && nextTapWindow(40)==80 && nextTapWindow(75)==80 &&
+          nextTapWindow(80)==120 && nextTapWindow(120)==150 && nextTapWindow(150)==40 &&
+          nextTapWindow(std::numeric_limits<std::int64_t>::max())==40,"window presets and custom setting");
     std::cout << "PASS: landing taps, expiry, cancellation, physical ownership and lifecycle\n";
 }

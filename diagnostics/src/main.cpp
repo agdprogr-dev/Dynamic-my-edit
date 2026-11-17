@@ -100,7 +100,7 @@ class $modify(InputAlignDiagnosticsInput, GJBaseGameLayer) {
             sendTap(pl, landingTap.step(nowMs(), eligible, p->m_isOnGround));
         } catch (...) {
             assistFailed = true;
-            sendTap(pl, landingTap.stop());
+            sendTap(pl, landingTap.stop(inputalign::TapCancel::error));
         }
         return result;
     }
@@ -139,7 +139,7 @@ class $modify(InputAlignDiagnosticsInput, GJBaseGameLayer) {
                     static_cast<int>(std::clamp<int64_t>(ms, 10, 150)));
             } catch (...) {
                 assistFailed = true;
-                sendTap(pl, landingTap.stop());
+                sendTap(pl, landingTap.stop(inputalign::TapCancel::error));
             }
         }
         GJBaseGameLayer::handleButton(press, button, player1);
@@ -156,11 +156,17 @@ class $modify(InputAlignLandingPlayer, PlayerObject) {
             sendTap(pl, landingTap.afterPhysics());
         } catch (...) {
             assistFailed = true;
-            sendTap(pl, landingTap.stop());
+            sendTap(pl, landingTap.stop(inputalign::TapCancel::error));
         }
     }
 };
 class $modify(InputAlignDiagnosticsLevel, PlayLayer) {
+    bool init(GJGameLevel* level, bool replay, bool noObjects) {
+        if (!PlayLayer::init(level, replay, noObjects)) return false;
+        landingTap.clear(); history.clear();
+        assistFailed = captureFailed = false;
+        return true;
+    }
     void resetLevel() {
         landingTap.resetAttempt(); assistFailed = false;
         history.clear();
@@ -179,6 +185,55 @@ class $modify(InputAlignDiagnosticsLevel, PlayLayer) {
     }
 };
 class $modify(InputAlignDiagnosticsPause, PauseLayer) {
+    struct Fields {
+        CCLabelBMFont* tapState = nullptr; // Owned by the pause layer, never retained globally.
+    };
+    void refreshTapState() {
+        if (!m_fields->tapState) return;
+        bool enabled = Mod::get()->getSettingValue<bool>("landing-tap");
+        auto ms = std::clamp<int64_t>(Mod::get()->getSettingValue<int64_t>("landing-window-ms"),10,150);
+        m_fields->tapState->setString(fmt::format("Tap {} | {} ms",enabled ? "ON" : "OFF",ms).c_str());
+    }
+    void toggleTap(CCObject*) {
+        sendTap(PlayLayer::get(), landingTap.stop());
+        auto* mod = Mod::get();
+        bool enabled = !mod->getSettingValue<bool>("landing-tap");
+        mod->setSettingValue<bool>("landing-tap", enabled);
+        refreshTapState();
+        if (enabled) {
+            auto* pl = PlayLayer::get();
+            auto blocker = tapBlocker(pl, pl ? pl->m_player1 : nullptr, true);
+            auto text = fmt::format("Estado: {}.\n\nSolo practica y cubo normal, sin CBF. Apaga Buffer in cube and others del original; Wave puede seguir activo. Las pulsaciones mantenidas siguen a cargo del juego.",
+                inputalign::blockMessage(blocker));
+            FLAlertLayer::create("Tap configurado ON", text, "OK")->show();
+        }
+    }
+    void cycleTapWindow(CCObject*) {
+        sendTap(PlayLayer::get(), landingTap.stop());
+        auto* mod = Mod::get();
+        auto current = mod->getSettingValue<int64_t>("landing-window-ms");
+        mod->setSettingValue<int64_t>("landing-window-ms",inputalign::nextTapWindow(current));
+        refreshTapState();
+    }
+    void showTapHistory(CCObject*) {
+        auto* pl = PlayLayer::get();
+        auto blocker = tapBlocker(pl, pl ? pl->m_player1 : nullptr, true);
+        auto const& totals = landingTap.stats();
+        std::string text = fmt::format("<cy>Estado actual:</c> {}\n\nNivel: {} solicitudes, {} expirados, {} cancelados, {} mantenidos.\nSon decisiones de esta ayuda, no vidas salvadas.\n\n",
+            inputalign::blockMessage(blocker),totals.requested,totals.expired,totals.cancelled,totals.native_holds);
+        if (!landingTap.historySize()) text += "Todavia no hay resultados en este nivel.\n";
+        for (std::size_t i=0; i<landingTap.historySize() && i<6; ++i) {
+            auto const& event = *landingTap.recent(i);
+            text += inputalign::tapMessage(event.status);
+            if (event.status == inputalign::TapStatus::applied)
+                text += fmt::format(" (+{} ms solicitados)",event.delay_ms);
+            if (event.status == inputalign::TapStatus::cancelled)
+                text += fmt::format(" ({})",inputalign::cancelMessage(event.cause));
+            text += "\n";
+        }
+        text += "\nMas reciente primero. Historial limitado a 16 resultados por nivel.\nVentana en milisegundos reales; no modifica los ticks del original.";
+        FLAlertLayer::create(nullptr,"Historial Tap",text,"OK",nullptr,350.f,true,200.f,0.65f)->show();
+    }
     void customSetup() {
         sendTap(PlayLayer::get(), landingTap.stop());
         PauseLayer::customSetup();
@@ -191,6 +246,21 @@ class $modify(InputAlignDiagnosticsPause, PauseLayer) {
         auto size = CCDirector::get()->getWinSize();
         item->setPosition({size.width - 75.f, 28.f});
         menu->addChild(item);
+        auto addTapButton = [&](char const* title, SEL_MenuHandler callback, float y) {
+            auto* button = ButtonSprite::create(title);
+            button->setScale(0.5f);
+            auto* control = CCMenuItemSpriteExtra::create(button,this,callback);
+            control->setPosition({size.width - 75.f,y});
+            menu->addChild(control);
+        };
+        addTapButton("Tap ON/OFF",menu_selector(InputAlignDiagnosticsPause::toggleTap),65.f);
+        addTapButton("Ventana Tap",menu_selector(InputAlignDiagnosticsPause::cycleTapWindow),102.f);
+        addTapButton("Historial Tap",menu_selector(InputAlignDiagnosticsPause::showTapHistory),139.f);
+        m_fields->tapState = CCLabelBMFont::create("", "chatFont.fnt");
+        m_fields->tapState->setScale(0.55f);
+        m_fields->tapState->setPosition({size.width - 75.f,170.f});
+        addChild(m_fields->tapState,101);
+        refreshTapState();
         addChild(menu, 100);
     }
     void showDiagnostics(CCObject*) {
