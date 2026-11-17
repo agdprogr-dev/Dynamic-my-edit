@@ -32,6 +32,10 @@ def emulator(dll):
 
 
 def verify(original_path, patched_path):
+    if not __debug__:
+        raise RuntimeError(
+            'Verification cannot run with Python optimization; remove -O/-OO and PYTHONOPTIMIZE'
+        )
     with zipfile.ZipFile(original_path) as old, zipfile.ZipFile(patched_path) as new:
         assert hashlib.sha256(Path(original_path).read_bytes()).hexdigest() == PACKAGE_SHA
         assert new.testzip() is None
