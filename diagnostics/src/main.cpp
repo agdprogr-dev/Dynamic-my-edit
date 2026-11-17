@@ -79,6 +79,23 @@ std::string describe(inputalign::Assessment const& a) {
 }
 }
 class $modify(InputAlignDiagnosticsInput, GJBaseGameLayer) {
+    int checkCollisions(PlayerObject* p, float dt, bool ignoreDamage) {
+        int result = GJBaseGameLayer::checkCollisions(p, dt, ignoreDamage);
+        auto* pl = PlayLayer::get();
+        if (!pl || static_cast<GJBaseGameLayer*>(pl) != static_cast<GJBaseGameLayer*>(this)
+            || p != pl->m_player1 || !p) return result;
+        if (p->m_isDead) { landingTap.clear(); return result; }
+        if (!std::isfinite(dt) || dt <= 0.f) return result;
+        try {
+            bool eligible = tapBlocker(pl, p) == nullptr &&
+                (p->m_isOnGround || p->m_yVelocity < 0);
+            sendTap(pl, landingTap.step(nowMs(), eligible, p->m_isOnGround));
+        } catch (...) {
+            assistFailed = true;
+            sendTap(pl, landingTap.stop());
+        }
+        return result;
+    }
     void handleButton(bool press, int button, bool player1) {
         if (sendingTap) {
             GJBaseGameLayer::handleButton(press, button, player1);
@@ -128,10 +145,7 @@ class $modify(InputAlignLandingPlayer, PlayerObject) {
         if (m_isDead) { landingTap.clear(); return; }
         if (!std::isfinite(dt) || dt <= 0.f) return;
         try {
-            bool eligible = tapBlocker(pl, this) == nullptr &&
-                (m_isOnGround || m_yVelocity < 0);
-            auto action = landingTap.step(nowMs(), eligible, m_isOnGround);
-            sendTap(pl, action);
+            sendTap(pl, landingTap.afterPhysics());
         } catch (...) {
             assistFailed = true;
             sendTap(pl, landingTap.stop());

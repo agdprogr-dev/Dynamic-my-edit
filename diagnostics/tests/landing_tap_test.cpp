@@ -11,7 +11,8 @@ int main() {
     tap(b);
     check(b.step(20,true,false)==TapAction::none,"wait airborne");
     check(b.step(79,true,true)==TapAction::press,"released tap on landing");
-    check(b.step(80,true,false)==TapAction::release,"release after physics even past deadline");
+    check(b.step(79,true,true)==TapAction::none,"repeated collision does not release pulse");
+    check(b.afterPhysics()==TapAction::release,"release after next physics update");
     check(b.step(81,true,true)==TapAction::none,"no repeated jumps");
     b.clear(); tap(b); check(b.step(80,true,true)==TapAction::none,"exact deadline expires");
     check(b.status()==TapStatus::expired,"timeout reason");
@@ -22,7 +23,7 @@ int main() {
     check(b.status()==TapStatus::native_hold,"hold reason");
     b.clear(); tap(b); check(b.step(20,true,true)==TapAction::press,"new pulse");
     b.input(true,true,false,21,80);
-    check(b.step(22,true,true)==TapAction::none,"do not release user's new hold");
+    check(b.afterPhysics()==TapAction::none,"do not release user's new hold");
     b.clear(); tap(b); b.step(20,true,true);
     check(b.stop()==TapAction::release,"pause flushes synthetic hold");
     check(b.status()==TapStatus::applied,"opening diagnosis preserves last result");

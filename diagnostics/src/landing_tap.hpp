@@ -41,9 +41,14 @@ public:
         armed = pulse = false;
         return release ? TapAction::release : TapAction::none;
     }
+    TapAction afterPhysics() {
+        if (!pulse) return TapAction::none;
+        pulse = false;
+        return down ? TapAction::none : TapAction::release;
+    }
     TapAction step(std::uint64_t now, bool eligible, bool grounded) {
-        // Called AFTER one real player physics update. Never release a real hold.
-        if (pulse) { pulse = false; return down ? TapAction::none : TapAction::release; }
+        // Collision observations may repeat before the next physics step.
+        if (pulse) return TapAction::none;
         if (!eligible) { if (armed) last = TapStatus::cancelled; armed = false; return TapAction::none; }
         if (!armed) return TapAction::none;
         if (now < started || now - started >= window) {
