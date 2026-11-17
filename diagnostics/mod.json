@@ -1,12 +1,32 @@
 {
   "geode": "5.11.2",
-  "gd": {"win": "2.2081"},
-  "version": "v0.1.0",
+  "gd": {
+    "win": "2.2081"
+  },
+  "version": "v0.2.0",
   "id": "agdprogr.inputalign_diagnostics",
   "name": "InputAlign Diagnostics (experimental)",
   "developer": "agdprogr-dev",
-  "description": "Read-only configuration diagnostics for InputAlign. Does not change or correct inputs.",
+  "description": "Configuration diagnostics with optional experimental practice cube landing-tap assist.",
   "settings": {
-    "capture": {"type": "bool", "name": "Registrar llamadas observadas", "default": true, "description": "Conserva las ultimas 32 llamadas de entrada observadas; no identifica por si solo clics fisicos ni motivos internos del motor."}
+    "capture": {
+      "type": "bool",
+      "name": "Registrar llamadas observadas",
+      "default": true,
+      "description": "Conserva las ultimas 32 llamadas de entrada observadas; no identifica por si solo clics fisicos ni motivos internos del motor."
+    },
+    "landing-tap": {
+      "type": "bool",
+      "name": "Ayuda de tap al aterrizar (experimental)",
+      "default": false,
+      "description": "Solo practica, cubo normal de un jugador. Repite un tap soltado poco antes de aterrizar. Requiere InputAlign original apagado y CBF ausente. Puede provocar saltos no deseados."
+    },
+    "landing-window-ms": {
+      "type": "int",
+      "name": "Ventana de tap (ms reales)",
+      "default": 80,
+      "min": 10,
+      "max": 150
+    }
   }
 }
