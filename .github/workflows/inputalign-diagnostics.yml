@@ -26,17 +26,6 @@ jobs:
           sdk: v5.11.2
           target: Win64
           configure-args: -DBUILD_TESTING=OFF
-      - name: Export compiled mod for task download
-        shell: pwsh
-        run: |
-          $file = Join-Path '${{ steps.build.outputs.build-output }}' 'agdprogr.inputalign_diagnostics.geode'
-          $bytes = [System.IO.File]::ReadAllBytes($file)
-          $hash = [System.Security.Cryptography.SHA256]::HashData($bytes)
-          Write-Output ('CRMODSHA:' + [Convert]::ToHexString($hash))
-          $encoded = [Convert]::ToBase64String($bytes)
-          for ($i = 0; $i -lt $encoded.Length; $i += 1000) {
-            Write-Output ('CRMOD:' + $encoded.Substring($i, [Math]::Min(1000, $encoded.Length - $i)))
-          }
       - uses: actions/upload-artifact@v4
         with:
           name: inputalign-diagnostics-windows-experimental
