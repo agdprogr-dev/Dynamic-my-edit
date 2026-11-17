@@ -5,6 +5,7 @@
 #include <Geode/modify/PlayerObject.hpp>
 #include "diagnostics.hpp"
 #include "landing_tap.hpp"
+#include "tap_eligibility.hpp"
 #include <chrono>
 #include <cmath>
 #include <string>
@@ -32,24 +33,31 @@ bool read(Mod* mod, char const* key, T& value) {
     return true;
 }
 // Explicitly conservative: never run two correctors on the same input stream.
-char const* tapBlocker(PlayLayer* pl, PlayerObject* p, bool ignorePause = false) {
-    if (assistFailed) return "Ayuda suspendida por error";
-    if (!Mod::get()->getSettingValue<bool>("landing-tap")) return "Ayuda de salto apagada";
-    if (!pl || !p || p->m_isDead) return "Sin jugador vivo";
-    if (!pl->m_isPracticeMode || (!ignorePause && pl->m_isPaused)) return "Requiere practica sin pausa";
-    if (Loader::get()->isModLoaded("syzzi.click_between_frames")) return "CBF cargado: ayuda suspendida";
+inputalign::TapBlock tapBlocker(PlayLayer* pl, PlayerObject* p, bool ignorePause = false) {
+    inputalign::TapEnvironment e;
+    e.failed = assistFailed;
+    e.enabled = Mod::get()->getSettingValue<bool>("landing-tap");
+    e.alive = pl && p && !p->m_isDead;
+    e.practice = pl && pl->m_isPracticeMode;
+    e.paused = pl && pl->m_isPaused && !ignorePause;
+    e.cbf = e.enabled && e.alive && e.practice && !e.paused &&
+        Loader::get()->isModLoaded("syzzi.click_between_frames");
+    auto basicBlock = inputalign::eligibility(e);
+    if (basicBlock != inputalign::TapBlock::none) return basicBlock;
     if (auto* original = Loader::get()->getLoadedMod("ai.predictivebuffer")) {
-        bool enabled = true;
-        if (!read(original, "enabled", enabled) || enabled)
-            return "Apaga el buffer original para usar esta ayuda";
+        e.original_present = true;
+        e.original_schema = read(original, "enabled", e.original_enabled);
+        if (e.original_schema && e.original_enabled)
+            e.original_schema = read(original, "buffer-normal", e.original_normal);
     }
-    if (pl->m_gameState.m_isDualMode || p->m_isPlatformer || p->m_isShip ||
-        p->m_isBird || p->m_isBall || p->m_isDart || p->m_isRobot || p->m_isSpider ||
-        p->m_isSwing || p->m_isUpsideDown || p->m_isSideways || p->m_isDashing ||
-        p->m_isOnSlope || p->m_touchedRing || p->m_touchedCustomRing ||
-        p->m_touchedPad || p->m_touchedGravityPortal)
-        return "Solo cubo normal sin dual, portales, pendientes ni orbes";
-    return nullptr;
+    if (pl && p) {
+        e.unsupported_mode = pl->m_gameState.m_isDualMode || p->m_isPlatformer ||
+            p->m_isShip || p->m_isBird || p->m_isBall || p->m_isDart || p->m_isRobot ||
+            p->m_isSpider || p->m_isSwing || p->m_isUpsideDown || p->m_isSideways || p->m_isDashing;
+        e.unsafe_contact = p->m_isOnSlope || p->m_touchedRing || p->m_touchedCustomRing ||
+            p->m_touchedPad || p->m_touchedGravityPortal;
+    }
+    return inputalign::eligibility(e);
 }
 inputalign::Config config() {
     inputalign::Config c;
@@ -84,10 +92,10 @@ class $modify(InputAlignDiagnosticsInput, GJBaseGameLayer) {
         auto* pl = PlayLayer::get();
         if (!pl || static_cast<GJBaseGameLayer*>(pl) != static_cast<GJBaseGameLayer*>(this)
             || p != pl->m_player1 || !p) return result;
-        if (p->m_isDead) { landingTap.clear(); return result; }
+        if (p->m_isDead) { landingTap.resetAttempt(); return result; }
         if (!std::isfinite(dt) || dt <= 0.f) return result;
         try {
-            bool eligible = tapBlocker(pl, p) == nullptr &&
+            bool eligible = tapBlocker(pl, p) == inputalign::TapBlock::none &&
                 (p->m_isOnGround || p->m_yVelocity < 0);
             sendTap(pl, landingTap.step(nowMs(), eligible, p->m_isOnGround));
         } catch (...) {
@@ -124,7 +132,7 @@ class $modify(InputAlignDiagnosticsInput, GJBaseGameLayer) {
             static_cast<GJBaseGameLayer*>(this) && button == 1 && player1) {
             try {
                 auto* p = pl->m_player1;
-                bool eligible = tapBlocker(pl, p) == nullptr;
+                bool eligible = tapBlocker(pl, p) == inputalign::TapBlock::none;
                 bool falling = p && !p->m_isOnGround && p->m_yVelocity < 0;
                 auto ms = Mod::get()->getSettingValue<int64_t>("landing-window-ms");
                 landingTap.input(press, eligible, falling, nowMs(),
@@ -142,7 +150,7 @@ class $modify(InputAlignLandingPlayer, PlayerObject) {
         PlayerObject::update(dt);
         auto* pl = PlayLayer::get();
         if (!pl || static_cast<PlayerObject*>(this) != pl->m_player1) return;
-        if (m_isDead) { landingTap.clear(); return; }
+        if (m_isDead) { landingTap.resetAttempt(); return; }
         if (!std::isfinite(dt) || dt <= 0.f) return;
         try {
             sendTap(pl, landingTap.afterPhysics());
@@ -154,13 +162,13 @@ class $modify(InputAlignLandingPlayer, PlayerObject) {
 };
 class $modify(InputAlignDiagnosticsLevel, PlayLayer) {
     void resetLevel() {
-        landingTap.clear(); assistFailed = false;
+        landingTap.resetAttempt(); assistFailed = false;
         history.clear();
         captureFailed = false;
         PlayLayer::resetLevel();
     }
     void destroyPlayer(PlayerObject* p, GameObject* object) {
-        landingTap.clear();
+        if (p == m_player1) landingTap.resetAttempt();
         PlayLayer::destroyPlayer(p, object);
     }
     void onQuit() {
@@ -190,10 +198,13 @@ class $modify(InputAlignDiagnosticsPause, PauseLayer) {
         std::string text = "<cy>Estado observable, no veredicto de simulacion.</c>\n";
         text += "Las llamadas pueden incluir entradas generadas por otros mods.\n\n";
         auto* pl = PlayLayer::get();
-        auto* blocker = tapBlocker(pl, pl ? pl->m_player1 : nullptr, true);
+        auto blocker = tapBlocker(pl, pl ? pl->m_player1 : nullptr, true);
         text += fmt::format("<cy>Ayuda de salto:</c> {}\nUltimo resultado: {}\n\n",
-            blocker ? blocker : "Disponible (solo taps del jugador 1)",
+            inputalign::blockMessage(blocker),
             inputalign::tapMessage(landingTap.status()));
+        auto const& totals = landingTap.stats();
+        text += fmt::format("Nivel: {} solicitudes, {} expirados, {} cancelados, {} mantenidos\nUltimo retraso solicitado: {} ms\n\n",
+            totals.requested, totals.expired, totals.cancelled, totals.native_holds, totals.last_delay_ms);
         if (captureFailed) text += "<cr>Captura suspendida por error; se conserva el paso de entradas.</c>\n";
         if (!c.available) text += "InputAlign ausente o esquema de ajustes incompatible.\n";
         else {

@@ -48,15 +48,41 @@ Instala el `.geode` resultante junto a InputAlign, abre práctica, pulsa y suelt
 
 ## Ayuda de tap al aterrizar (v0.2.0)
 
-**Cambio de comportamiento autorizado:** el complemento antes solo observaba. Ahora permite activar una asistencia experimental, apagada por defecto. En Geode activa **Ayuda de tap al aterrizar** y ajusta su ventana (10–150 milisegundos reales, 80 por defecto; no son ticks). Desactiva el buffer original de InputAlign y retira CBF para probarla.
+**Cambio de comportamiento autorizado:** el complemento antes solo observaba. Ahora permite activar una asistencia experimental, apagada por defecto. En Geode activa **Ayuda de tap al aterrizar** y ajusta su ventana (10–150 milisegundos reales, 80 por defecto; no son ticks). <!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:f06d5040417484ccb6d4627de482f9bd975d05d3f5cb68a75bdc068139d4abb1 -->
+
+Desde v0.3.0 basta con apagar **Buffer in cube and others** del original; puedes conservar **Buffer in wave** activo. También funciona con el original completamente apagado o ausente. CBF debe estar ausente.
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 Solo se aplica en práctica, al jugador 1 y al cubo normal de un jugador, con gravedad normal, sin pendientes, dash, orbes, pads ni portales detectados. No actúa en plataforma, dual, Wave ni otros vehículos. Deja pasar todas las entradas originales. Cuando detecta una pulsación mientras caes, recuerda ese tap brevemente. Si ya soltaste antes de tocar el suelo y sigues dentro de la ventana, añade una pulsación y la libera tras la siguiente actualización de física. Una pulsación que sigues manteniendo queda a cargo del juego. Nunca libera una pulsación nueva del usuario.
 
 El panel muestra el bloqueo actual de esta ayuda y su último resultado real: pendiente, aplicado, expirado, cancelado o pulsación mantenida. No convierte esos resultados en decisiones del motor original. Pausar cancela taps pendientes; reiniciar, morir y salir limpian el estado. La ventana usa reloj monotónico real, por lo que a cámara lenta representa menos tiempo de juego. Llamadas generadas por otros mods pueden confundirse con taps; no usar con macros/reproductores u otras ayudas de entrada.
 
-No predice obstáculos ni garantiza que el salto sea seguro. Puede producir saltos no deseados, incluso en interacciones que sus filtros no detecten. **No se ha probado en Geometry Dash.** Empieza con un suelo sencillo en práctica: pulsa y suelta justo antes de caer y comprueba un salto; repite fuera de la ventana, manteniendo el botón, pausando, muriendo y reiniciando. Verifica que no se queda pulsado. Prueba también cada filtro: con original activado o CBF presente debe quedar suspendida. Mantén esta función apagada fuera de esas pruebas.
+No predice obstáculos ni garantiza que el salto sea seguro. Puede producir saltos no deseados, incluso en interacciones que sus filtros no detecten. **No se ha probado en Geometry Dash.** Empieza con un suelo sencillo en práctica: pulsa y suelta justo antes de caer y comprueba un salto; repite fuera de la ventana, manteniendo el botón, pausando, muriendo y reiniciando. Verifica que no se queda pulsado. Prueba también cada filtro: <!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:11619eeb5cc90e992457261ccd2ff5feaf0bbf27474982dd1f5fa0a70f5ee264 -->
+
+con el buffer normal del original activo o CBF presente debe quedar suspendida.
+
+<!-- /coderabbit-ai-generated:v1 --> Mantén esta función apagada fuera de esas pruebas.
+
+<!-- coderabbit-ai-generated:v1 -->
+
+<!-- coderabbit-ai-generated-section:v1:bcbf9c8990f2cca117e7b21d928a9688fa91fda64d6ca95fdbe74936ad81e517 -->
+
+## Novedades v0.3.0
+
+La compatibilidad ahora se decide mediante una política comprobada fuera del juego. El original puede conservar Wave activado si **Buffer in cube and others** está apagado. Si no se pueden leer sus ajustes con el tipo esperado, la ayuda se suspende. Se conservan las restricciones de práctica, jugador 1, cubo normal y ausencia de CBF. Esta convivencia se apoya en la separación Normal/Wave documentada por el mod original; todavía no se ha probado dentro del juego.
+
+El panel muestra contadores por nivel: **solicitudes de pulsación**, taps expirados, taps cancelados y pulsaciones mantenidas a cargo del juego, junto al retraso de la última solicitud. No cuentan vidas salvadas ni demuestran que una pulsación solicitada haya superado todos los hooks. No cuentan cada observación de colisión como otra corrección. Los contadores usan espacio fijo y saturan al llegar al máximo. Sobreviven a muertes y reintentos; salir del nivel los borra. Las entradas pendientes sí se descartan inmediatamente al morir o reiniciar.
+
+La cobertura añade pruebas de los filtros y sus combinaciones, convivencia con el original, conservación de estadísticas, reinicios y ausencia de doble conteo. El verificador de cobertura genérico no reconoce estos archivos C++; se inspeccionaron manualmente. Compilar y pasar estas pruebas no sustituye la comprobación de física y orden de hooks dentro de Geometry Dash.
 
 ## Trabajo pendiente del motor
+
+<!-- /coderabbit-ai-generated:v1 -->
 
 <!-- /coderabbit-ai-generated:v1 -->
 

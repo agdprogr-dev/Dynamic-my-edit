@@ -42,5 +42,24 @@ int main() {
     }
     b.clear(); tap(b); b.input(true,true,true,30,80); b.input(false,true,true,31,80);
     check(b.step(100,true,true)==TapAction::press,"new tap replaces previous one");
+    b.clear(); tap(b); b.step(20,true,true); b.step(21,true,true);
+    check(b.stats().requested==1 && b.stats().last_delay_ms==20,"requests count once with actual delay");
+    b.resetAttempt();
+    check(b.stats().requested==1 && b.status()==TapStatus::applied,"retry preserves level summary");
+    check(b.afterPhysics()==TapAction::none,"retry discards stale pulse");
+    tap(b,100); b.step(180,true,false); b.step(181,true,false);
+    check(b.stats().expired==1,"expiry counted once");
+    tap(b,200); b.step(210,false,false); b.step(211,false,false);
+    check(b.stats().cancelled==1,"context cancellation counted once");
+    tap(b,300); b.resetAttempt(); b.resetAttempt();
+    check(b.stats().cancelled==2,"death and retry do not double count cancellation");
+    b.input(true,true,true,400,80); b.step(410,true,true); b.step(411,true,true);
+    check(b.stats().native_holds==1,"native hold counted once");
+    b.input(false,true,false,412,80); tap(b,500); b.input(true,true,true,510,80);
+    check(b.stats().cancelled==3,"replacing a pending tap counts one cancellation");
+    b.clear(); check(b.stats().requested==0 && b.stats().cancelled==0,"new level clears stats");
+    std::uint32_t counter = std::numeric_limits<std::uint32_t>::max()-1;
+    incrementCounter(counter); incrementCounter(counter);
+    check(counter==std::numeric_limits<std::uint32_t>::max(),"counters saturate");
     std::cout << "PASS: landing taps, expiry, cancellation, physical ownership and lifecycle\n";
 }

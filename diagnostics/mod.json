@@ -3,7 +3,7 @@
   "gd": {
     "win": "2.2081"
   },
-  "version": "v0.2.0",
+  "version": "v0.3.0",
   "id": "agdprogr.inputalign_diagnostics",
   "name": "InputAlign Diagnostics (experimental)",
   "developer": "agdprogr-dev",
@@ -19,7 +19,7 @@
       "type": "bool",
       "name": "Ayuda de tap al aterrizar (experimental)",
       "default": false,
-      "description": "Solo practica, cubo normal de un jugador. Repite un tap soltado poco antes de aterrizar. Requiere InputAlign original apagado y CBF ausente. Puede provocar saltos no deseados."
+      "description": "Solo practica y cubo normal. Repite un tap soltado antes de aterrizar. Requiere buffer-normal original apagado (Wave puede seguir activo) y CBF ausente. Puede causar saltos no deseados."
     },
     "landing-window-ms": {
       "type": "int",
