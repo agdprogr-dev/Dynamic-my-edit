@@ -1,0 +1,12 @@
+{
+  "geode": "5.11.2",
+  "gd": {"win": "2.2081"},
+  "version": "v0.1.0",
+  "id": "agdprogr.inputalign_diagnostics",
+  "name": "InputAlign Diagnostics (experimental)",
+  "developer": "agdprogr-dev",
+  "description": "Read-only configuration diagnostics for InputAlign. Does not change or correct inputs.",
+  "settings": {
+    "capture": {"type": "bool", "name": "Registrar llamadas observadas", "default": true, "description": "Conserva las ultimas 32 llamadas de entrada observadas; no identifica por si solo clics fisicos ni motivos internos del motor."}
+  }
+}
